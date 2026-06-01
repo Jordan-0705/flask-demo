@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flask Demo · CI/CD Pipeline</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0e14;
+      color: #e6f1ff;
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .scanlines {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none; z-index: 0;
+    }
+
+    .grid-bg {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      position: relative; z-index: 1;
+      max-width: 900px; margin: 0 auto;
+      padding: 3rem 2rem;
+    }
+
+    .header {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 3rem;
+      animation: fadeDown 0.6s ease forwards;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #00ff88;
+      box-shadow: 0 0 8px #00ff88;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .header-text {
+      font-size: 12px; color: #00ff88;
+      letter-spacing: 0.15em; text-transform: uppercase;
+    }
+
+    .hero {
+      margin-bottom: 3rem;
+      animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    .hero h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      color: #e6f1ff;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero h1 span { color: #00ff88; }
+
+    .hero p {
+      font-size: 13px; color: #8892a4;
+      line-height: 1.8; max-width: 560px;
+    }
+
+    .terminal {
+      background: #0d1117;
+      border: 1px solid #1e2d3d;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .terminal-bar {
+      background: #161b22;
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid #1e2d3d;
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red    { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green  { background: #28c840; }
+
+    .terminal-title {
+      font-size: 11px; color: #4a5568;
+      margin-left: 8px; letter-spacing: 0.05em;
+    }
+
+    .terminal-body { padding: 1.5rem; }
+
+    .line {
+      font-size: 13px; line-height: 2;
+      display: flex; gap: 0.75rem;
+    }
+
+    .prompt { color: #00ff88; }
+    .cmd    { color: #e6f1ff; }
+
+    .output {
+      padding-left: 1.5rem;
+      font-size: 12px; line-height: 1.8;
+    }
+
+    .success { color: #00ff88; }
+    .info    { color: #79c0ff; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px; height: 14px;
+      background: #00ff88;
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+
+    .card {
+      background: #0d1117;
+      border: 1px solid #1e2d3d;
+      border-radius: 8px;
+      padding: 1.25rem;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: #00ff8866; }
+
+    .card-label {
+      font-size: 10px; color: #4a5568;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-value {
+      font-size: 22px; font-weight: 700;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .green  { color: #00ff88; }
+    .blue   { color: #79c0ff; }
+    .amber  { color: #e3b341; }
+    .purple { color: #c084fc; }
+
+    .card-sub {
+      font-size: 11px; color: #4a5568; margin-top: 4px;
+    }
+
+    .endpoints {
+      background: #0d1117;
+      border: 1px solid #1e2d3d;
+      border-radius: 8px;
+      overflow: hidden;
+      animation: fadeUp 0.6s 0.4s ease both;
+    }
+
+    .endpoints-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1e2d3d;
+      font-size: 11px; color: #4a5568;
+      text-transform: uppercase; letter-spacing: 0.12em;
+    }
+
+    .endpoint {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 12px 16px;
+      border-bottom: 1px solid #161b22;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+
+    .endpoint:last-child { border-bottom: none; }
+    .endpoint:hover { background: #161b22; }
+
+    .method {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 3px 8px; border-radius: 4px;
+      min-width: 44px; text-align: center;
+    }
+
+    .get {
+      background: #0d2b1a; color: #00ff88;
+      border: 1px solid #00ff8844;
+    }
+
+    .path { color: #79c0ff; flex: 1; }
+    .desc { color: #4a5568; font-size: 11px; }
+
+    .footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #1e2d3d;
+      font-size: 11px; color: #4a5568;
+      display: flex; justify-content: space-between;
+      animation: fadeUp 0.6s 0.5s ease both;
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+<div class="grid-bg"></div>
+
+<div class="container">
+
+  <div class="header">
+    <div class="status-dot"></div>
+    <span class="header-text">Pipeline CI/CD · Flask Demo · v1.0.0</span>
+  </div>
+
+  <div class="hero">
+    <h1>Déploiement<br><span>automatique</span> réussi.</h1>
+    <p>Application Flask déployée via GitHub Actions → Docker Hub → Self-hosted runner sur Ubuntu VM.</p>
+  </div>
+
+  <div class="terminal">
+    <div class="terminal-bar">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+      <span class="terminal-title">pipeline · bash</span>
+    </div>
+    <div class="terminal-body">
+      <div class="line">
+        <span class="prompt">$</span>
+        <span class="cmd">git push origin main</span>
+      </div>
+      <div class="output info">→ Triggered GitHub Actions workflow</div>
+
+      <div class="line">
+        <span class="prompt">$</span>
+        <span class="cmd">docker build -t jordan0705/flask-demo:latest .</span>
+      </div>
+      <div class="output success">✓ Build completed in 12.4s</div>
+
+      <div class="line">
+        <span class="prompt">$</span>
+        <span class="cmd">docker push jordan0705/flask-demo:latest</span>
+      </div>
+      <div class="output success">✓ Pushed to Docker Hub</div>
+
+      <div class="line">
+        <span class="prompt">$</span>
+        <span class="cmd">docker run -d --name flask-demo -p 5000:5000 ...</span>
+      </div>
+      <div class="output success">✓ Container deployed · 192.168.218.20:5000</div>
+
+      <div class="line">
+        <span class="prompt">$</span>
+        <span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Statut</div>
+      <div class="card-value green">ONLINE</div>
+      <div class="card-sub">Opérationnel</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Version</div>
+      <div class="card-value blue">1.0.0</div>
+      <div class="card-sub">Production</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Runner</div>
+      <div class="card-value amber">LOCAL</div>
+      <div class="card-sub">Self-hosted · Ubuntu</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Stack</div>
+      <div class="card-value purple" style="font-size:15px; padding-top:4px;">Flask · Docker</div>
+      <div class="card-sub">GitHub Actions</div>
+    </div>
+  </div>
+
+  <div class="endpoints">
+    <div class="endpoints-header">Endpoints disponibles</div>
+    <div class="endpoint">
+      <span class="method get">GET</span>
+      <span class="path">/</span>
+      <span class="desc">Interface principale</span>
+    </div>
+    <div class="endpoint">
+      <span class="method get">GET</span>
+      <span class="path">/health</span>
+      <span class="desc">Health check JSON</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>jordan0705 · ISM Dakar</span>
+    <span>flask-demo · github.com/Jordan-0705</span>
+  </div>
+
+</div>
+
+</body>
+</html>
